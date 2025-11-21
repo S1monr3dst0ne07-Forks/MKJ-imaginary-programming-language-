@@ -1,0 +1,30 @@
+importpkg mkjExecutable
+mkjExecutable:activate("main.mkj")
+
+-- Define voting_age (18, number_nodec).
+var.new voting_age
+var voting_age.type = number_nodec
+var voting_age.value = 18
+
+-- Define user_age (22, number_nodec).
+var.new user_age
+var user_age.type = number_nodec
+var user_age.value = 22
+
+-- Define has_valid_id (bool) and set its value to true.
+var.new has_valid_id
+var has_valid_id.type = bool
+var has_valid_id.value = true
+
+-- Use an if statement to check if the user is 18 or older AND if they have a valid ID.
+if user_age >= voting_age and has_valid_id == true:
+    log.print.("Eligible to vote with valid ID")
+else:
+    log.print.("Too young to vote or Have invalid ID")
+
+Output:
+-- LOG --
+Eligible to vote with valid ID
+
+-- CONSOLE --
+(None)

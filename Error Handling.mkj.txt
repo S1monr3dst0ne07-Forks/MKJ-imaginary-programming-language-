@@ -1,0 +1,19 @@
+importpkg mkjExecutable
+mkjExecutable:activate("main.mkj")
+
+-- create new variable
+var.new bad_math
+var bad_math.type = number_nodec
+
+-- for error handling test, lets use divide by 0 scenario
+attempt:
+    var bad_math.value = 5 / 0 -- this is line 10
+catch err_msg: -- this automaticlly creates new variable thats the error result (if theres error)
+    log.print.("Err: ".. err_msg) -- prints the err msg it caught
+
+Output:
+-- LOG --
+Err: cannot divide by 0 in var bad_math : line 10
+
+-- CONSOLE --
+(None)

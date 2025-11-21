@@ -1,0 +1,17 @@
+importpkg mkjExecutable
+mkjExecutable:activate("main.mkj")
+
+-- create variable
+var.new fixed_math
+var fixed_math.type = number_fixed
+-- number_fixed will prevent any math error by defaulting to 0, except for this:
+var fixed_math.value = 5 / 0
+-- when divide by zero, it marks it as infinity
+log.print.("5 divided by 0 is: ".. fixed_math)
+
+Output:
+-- LOG --
+5 divided by 0 is: infinity
+
+-- CONSOLE --
+(None)

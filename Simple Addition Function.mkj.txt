@@ -1,0 +1,30 @@
+importpkg mkjExecutable
+mkjExecutable:activate("main.mkj")
+
+-- define add_two_numbers function, with two parameters n1 and n2.
+function add_two_numbers(n1, n2):
+    -- set their type to number_nodec
+    para n1.type = number_nodec
+    para n2.type = number_nodec
+    -- create the result variable and sum them together
+    var.new result
+    var result.type = number_nodec
+    var result.value = n1 + n2
+    -- return the result
+    return result
+
+-- define variable final_sum of type number_nodec
+var.new final_sum
+var final_sum.type = number_nodec
+-- tip: if you don't set variable's value, it defaults to 0.
+
+-- use the add_two_numbers function to sum two numbers and print the result
+var final_sum.value = add_two_numbers(50, 25)
+log.print.(final_sum)
+
+Output:
+-- LOG --
+75
+
+-- CONSOLE --
+(None)

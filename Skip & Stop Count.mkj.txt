@@ -1,0 +1,34 @@
+importpkg mkjExecutable
+mkjExecutable:activate("main.mkj")
+
+-- counter variable (starts at 0)
+var.new counter
+var counter.type = number_nodec
+var counter.value = 0
+
+-- start a loop that runs 10 times
+repeat 10:
+    -- increment the counter by 1
+    var counter.value += 1
+    -- check if counter equals 5
+    if counter == 5:
+        -- skip the print statement for that iteration
+        continue
+    -- check if counter equals 8
+    if counter == 8:
+        -- stop the entire loop
+        break
+    -- if the code reaches this point, print the current counter value.
+    log.print.(counter)
+
+Output:
+-- LOG --
+1
+2
+3
+4
+6
+7
+
+-- CONSOLE --
+(None)

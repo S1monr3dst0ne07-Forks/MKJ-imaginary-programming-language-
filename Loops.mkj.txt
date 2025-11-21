@@ -1,0 +1,23 @@
+importpkg mkjExecutable
+mkjExecutable:activate("main.mkj")
+
+-- Define a variable counter.
+var.new counter
+var counter.type = number_nodec
+var counter.value = 0
+
+-- Start a loop that runs 3 times.
+repeat 3:
+   -- increment the counter by 1
+   var counter.value += 1 -- or var counter.value = counter + 1
+   -- print the current value of the counter using log.print.()
+   log.print.(counter)
+
+Output:
+-- LOG --
+1
+2
+3
+
+-- CONSOLE --
+(None)

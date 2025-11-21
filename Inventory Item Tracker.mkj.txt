@@ -1,0 +1,30 @@
+importpkg mkjExecutable
+mkjExecutable:activate("main.mkj")
+
+-- define the class
+class.new Item
+
+-- define the constructor
+function new_item(name, initial_qty):
+    para name.type = string
+    para initial_qty.type = number_nodec
+    -- use self to store the input parameters as properties of the new object
+    self name, initial_qty
+
+-- define method report_status
+function report_status(item):
+    para item.type = other
+    log.print.(item)
+
+-- main code
+-- create new instance of the Item class named coffee_mug
+Item.new new_item("coffee_mug", 1)
+report_status(Item)
+
+Output:
+-- LOG --
+name: coffee_mug
+initial_qty: 1
+
+-- CONSOLE --
+(None)
