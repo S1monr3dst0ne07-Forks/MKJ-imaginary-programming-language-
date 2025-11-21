@@ -1,0 +1,45 @@
+importpkg mkjExecutable
+mkjExecutable:activate("main.mkj")
+
+-- define recipe
+var.new recipe
+var recipe.type = list
+var recipe.value = {
+    "Flour", "Sugar", "Salt"
+}
+
+-- and total_item
+var.new total_items
+var total_items.type = number_nodec -- (no decimal point)
+
+-- add Butter to the end of recipe list
+recipe.new "Butter", index = 4
+
+-- find total number of items and print the number
+for item in recipe:
+    -- increment the total_items by 1 for each items in recipe
+    var total_items.value += 1
+
+-- print the current recipe list
+log.print.("Recipe list:\n".. recipe) -- "\n" means break line
+
+-- let's try removing one of items in the list using random
+var.new random_target
+var random_target.type = random -- new: random type, can accept values (min, max)
+var random_target.value = 1, total_items
+
+-- now we remove one of items from the recipe list by using random_target variable
+recipe.remove index = random_target.randomize
+
+-- print the new recipe list
+log.print.("Recipe list (with one of items removed):\n".. recipe)
+
+Console:
+-- LOG --
+Recipe list:
+Flour Sugar Salt Butter
+Recipe list (with one of items removed):
+Flour Salt Butter
+
+-- CONSOLE --
+(None)
