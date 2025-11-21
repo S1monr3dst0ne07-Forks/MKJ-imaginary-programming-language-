@@ -1,0 +1,27 @@
+importpkg mkjExecutable
+mkjExecutable:activate("main.mkj")
+
+-- create hello world message
+var.new message
+var message.type = string
+var message.value = "Hello, World!"
+
+-- print the message in five varients
+log.print.("Normal: ".. message)
+log.print.("Length: ".. message.length) -- message string length (in number_nodec type)
+log.print.("Upper: ".. message.upper) -- all uppercase
+log.print.("Lower: ".. message.lower) -- all lowercase
+log.print.("Find: ".. message.find "Hello") -- find a word in the string
+log.print.("Find (nonexistent): ".. message.find "nonexistent") -- find nonexistent in the string
+
+Output:
+-- LOG --
+Normal: Hello, World!
+Length: 13
+Upper: HELLO, WORLD!
+Lower: hello, world!
+Find: Hello
+Find (nonexistent): null
+
+-- CONSOLE --
+(None)
