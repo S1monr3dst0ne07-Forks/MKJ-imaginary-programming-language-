@@ -70,6 +70,9 @@ def lex(src):
         def __init__(self, ts):
             self.ts = ts
 
+        def push(self, x):
+            self.ts.insert(0, x)
+
         def has(self):
             return len(self.ts) > 0
 
@@ -133,7 +136,10 @@ class leaf:
         if self.name[0] == '"': return self.name.strip('"')
         if self.name in builtin: return builtin[self.name]
         
-        return env[self.name]["value"]
+        if "value" in env[self.name]:
+            return env[self.name]["value"]
+
+        return env[self.name]
 
 
 
@@ -249,7 +255,12 @@ class ast_log:
     val : expr
 
     def run(self, env):
-        print(self.val.run(env))
+        out = self.val.run(env)
+        if type(out) is dict:
+            for k, v in out.items():
+                print(f"{k}: {v}")
+        else:
+            print(out)
 
     @classmethod
     def parse(cls, s):
@@ -291,6 +302,88 @@ class ast_try:
         return cls(body, target, catch)
 
 
+@dataclass
+class ast_class:
+    name : str
+
+    def run(self, env):
+        env[self.name] = {}
+
+    @classmethod
+    def parse(cls, s):
+        return cls(s.pop())
+
+@dataclass
+class ast_func:
+    name : str
+    params : "list[]"
+    body : "prog"
+
+    def run(self, env):
+        env["_fn"][self.name] = self
+
+    def call(self, env, args, constructer=None):
+        for name, value in zip(self.params, args):
+            env[name] = value
+
+        env["_con"] = constructer
+        self.body.run(env)
+
+    @classmethod
+    def parse(cls, s, scope):
+        name = s.pop()
+        params = []
+        s.expect('(')
+        while s.peek() != ')':
+            params.append(s.pop())
+            if s.peek() == ',': s.pop()
+        s.expect(')')
+        s.expect(':')
+        s.expect('\n')
+        body = ast_prog.parse(s, scope)
+        s.push('\n')
+        return cls(name, params, body)
+
+@dataclass
+class ast_self:
+    fields : list[str]
+
+    def run(self, env):
+        for name in self.fields:
+            env[env["_con"]][name] = env[name]
+
+    @classmethod
+    def parse(cls, s):
+        fields = []
+        while s.peek() != '\n':
+            fields.append(s.pop())
+            if s.peek() == ',': s.pop()
+        return cls(fields)
+
+@dataclass
+class ast_call:
+    fn_name : str
+    constructer : "str | None"
+    params : list[expr]
+
+    def run(self, env):
+        param_vals = [x.run(env) for x in self.params]
+        env["_fn"][self.fn_name].call(env, param_vals, self.constructer)
+
+    @classmethod
+    def parse(cls, s, constructer=None):
+        fn_name = s.pop()
+        params = []
+        s.expect('(')
+        while s.peek() != ')':
+            params.append(expr.parse(s))
+            if s.peek() == ',': s.pop()
+        s.expect(')')
+        return cls(fn_name, constructer, params)
+
+
+
+
 
 
 @dataclass
@@ -313,14 +406,15 @@ class ast_prog:
             if indent != scope:
                 break
 
+            stat = None
             match stream.pop():
                 case 'var':
                     if stream.peek() == '.':
                         stream.expect('.')
                         stream.expect('new')
-                        stats.append(ast_var_new.parse(stream))
+                        stat = ast_var_new.parse(stream)
                     else:
-                        stats.append(ast_var_set.parse(stream))
+                        stat = ast_var_set.parse(stream)
                 case 'importpkg':
                     stream.expect('mkjExecutable')
                 case 'mkjExecutable':
@@ -330,12 +424,39 @@ class ast_prog:
                     stream.expect('"main.mkj"')
                     stream.expect(')')
                 case 'if':
-                    stats.append(ast_if.parse(stream, scope+1))
+                    stat = ast_if.parse(stream, scope+1)
                     continue
                 case 'log':
-                    stats.append(ast_log.parse(stream))
+                    stat = ast_log.parse(stream)
                 case 'attempt':
-                    stats.append(ast_try.parse(stream, scope+1))
+                    stat = ast_try.parse(stream, scope+1)
+                case 'class':
+                    stream.expect('.')
+                    stream.expect('new')
+                    stat = ast_class.parse(stream)
+                case 'function':
+                    stat = ast_func.parse(stream, scope+1)
+                case 'para':
+                    stream.pop()
+                    stream.expect('.')
+                    stream.pop()
+                    stream.expect('=')
+                    stream.pop()
+                case 'self':
+                    stat = ast_self.parse(stream)
+
+                case x if stream.peek() == '.':
+                    stream.expect('.')
+                    stream.expect('new')
+                    stat = ast_call.parse(stream, constructer=x)
+                
+                case x:
+                    stream.push(x)
+                    stat = ast_call.parse(stream)
+
+            if stat is not None:
+                stats.append(stat)
+
 
             if stream.has():
                 stream.expect('\n')
@@ -353,7 +474,9 @@ def main():
 
     stream = lex(src)
     root = ast_prog.parse(stream)
-    root.run(env={})
+    root.run(env={
+        "_fn" : {}, #functions
+    })
 
 
 
