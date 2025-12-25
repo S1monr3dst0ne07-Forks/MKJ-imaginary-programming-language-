@@ -1,5 +1,6 @@
 
 import sys
+import random
 from dataclasses import dataclass
 
 
@@ -44,7 +45,7 @@ def lex(src):
             comment = True
 
 
-        if buffer == 'Output':
+        if buffer in ('Output', 'Console'):
             break
 
         if this != state and not comment and not string:
@@ -98,19 +99,32 @@ builtin = {
     'number_fixed': 'number_fixed',
     'string': 'string',
     'bool': 'bool',
+    'list': 'list',
+    'random': 'random',
     'true': True,
     'false': False,
 }
 
 @dataclass
 class leaf:
-    name : str
+    name : ""
     method : "str | None"
     args : "list[a]"
     kind : str
 
     @classmethod
     def parse(cls, s):
+        if s.peek() == '{':
+            s.expect('{')
+            elem = []
+            while s.peek() != '}':
+                if s.peek() == ',': s.pop()
+                elif s.peek() == '\n': s.pop()
+                elif s.peek().strip() == '': s.pop()
+                else: elem.append(leaf.parse(s))
+            s.expect('}')
+            return cls(elem, None, None, 'list')
+
         name = s.pop()
         method = None
         args = []
@@ -122,7 +136,7 @@ class leaf:
             method = s.pop()
 
             match method:
-                case 'length' | 'upper' | 'lower': pass
+                case 'length' | 'upper' | 'lower' | 'randomize': pass
                 case 'find': args.append(s.pop().strip('"'))
 
         elif s.peek() == '(':
@@ -140,9 +154,13 @@ class leaf:
                 case 'upper':  return val.upper()
                 case 'lower':  return val.lower()
                 case 'find':   return self.args[0] if self.args[0] in val else 'null'
+                case 'randomize': return random.randint(*val)
 
         if self.kind == 'call':
             return self.method.run(env)
+
+        if self.kind == 'list':
+            return [x.run(env) for x in self.name]
 
         if self.name.isdigit(): return int(self.name)
         if self.name[0] == '"': return self.name.strip('"')
@@ -178,6 +196,7 @@ class expr:
             'and':  lambda l,r: l and r,
             'or':   lambda l,r: l or r,
             '..':   lambda l,r: str(l) + str(r),
+            ',':    lambda l,r: ((l, r)),
         }[self.op](l,r)
 
 
@@ -185,7 +204,7 @@ class expr:
     def parse(cls, s):
         left = leaf.parse(s)
 
-        if s.peek() not in ('+', '-', '*', '/', '>=', '<=', '==', '!=', 'and', 'or', '..'):
+        if s.peek() not in ('+', '-', '*', '/', '>=', '<=', '==', '!=', 'and', 'or', '..', ','):
             return left
 
         op = s.pop()
@@ -204,7 +223,7 @@ class ast_var_new:
         return cls(s.pop())
 
     def run(self, env):
-        env[self.name] = {}
+        env[self.name] = {"value" : 0}
 
 @dataclass
 class ast_var_set:
@@ -361,7 +380,6 @@ class ast_func:
         s.expect(':')
         s.expect('\n')
         body = ast_prog.parse(s, scope)
-        s.push('\n')
         return cls(name, params, body)
 
 @dataclass
@@ -431,6 +449,68 @@ class ast_repeat:
         return cls(n, body)
 
 
+@dataclass
+class ast_method:
+    target : str
+    method : str
+    args : 'list'
+
+    def run(self, env):
+        match self.method:
+            case 'new':
+                l = env[self.target]["value"]
+                index = self.args[1].run(env) - 1
+                while len(l) <= index:
+                    l.append(None)
+                l[index] = self.args[0].run(env)
+            case 'remove':
+                index = self.args[0].run(env) - 1
+                l = env[self.target]["value"]
+                l.pop(index)
+
+
+
+    @classmethod
+    def parse(cls, s):
+        target = s.pop()
+        s.expect('.')
+        method = s.pop()
+        args = []
+        if method == 'new':
+            args.append(leaf.parse(s))
+            s.expect(',')
+            s.expect('index')
+            s.expect('=')
+            args.append(expr.parse(s))
+        elif method == 'remove':
+            s.expect('index')
+            s.expect('=')
+            args.append(expr.parse(s))
+
+        return cls(target, method, args)
+
+
+
+@dataclass
+class ast_for:
+    iter : str
+    cont : expr
+    body : ""
+
+    def run(self, env):
+        for elem in self.cont.run(env):
+            env[self.iter] = elem
+            self.body.run(env)
+
+    @classmethod
+    def parse(cls, s, scope):
+        iter = s.pop()
+        s.expect('in')
+        cont = expr.parse(s)
+        s.expect(':')
+        s.expect('\n')
+        body = ast_prog.parse(s, scope)
+        return cls(iter, cont, body)
 
 
 
@@ -500,11 +580,17 @@ class ast_prog:
                 case 'repeat':
                     stat = ast_repeat.parse(stream, scope+1)
 
+                case 'for':
+                    stat = ast_for.parse(stream, scope+1)
 
-                case x if stream.peek() == '.':
+                case x if x[0].isupper() and stream.peek() == '.':
                     stream.expect('.')
                     stream.expect('new')
                     stat = ast_call.parse(stream, constructer=x)
+
+                case x if x[0].islower() and stream.peek() == '.':
+                    stream.push(x)
+                    stat = ast_method.parse(stream)
                 
                 case x:
                     stream.push(x)
@@ -514,7 +600,7 @@ class ast_prog:
                 stats.append(stat)
 
 
-            if stream.has():
+            if stream.has() and stream.peek() == '\n':
                 stream.expect('\n')
 
         return cls(stats) 
