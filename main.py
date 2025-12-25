@@ -141,8 +141,8 @@ class ast_var_set:
 @dataclass
 class ast_if:
     cond : expr
-    then : "list[stat]"
-    otherwise : "list[stat] | None" #fuck you python
+    then :      "prog"
+    otherwise : "prog | None" #fuck you python
 
     @classmethod
     def parse(cls, s):
@@ -150,13 +150,13 @@ class ast_if:
         s.expect(':')
         s.expect('\n')
         scope = 1 #hard coded
-        then = parse(s, scope)
+        then = ast_prog.parse(s, scope)
 
         if s.peek() == 'else':
             s.expect('else')
             s.expect(':')
             s.expect('\n')
-            otherwise = parse(s, scope)
+            otherwise = ast_prog.parse(s, scope)
         else:
             otherwise = None
 
@@ -179,45 +179,47 @@ class ast_log:
         return cls(val)
 
 
+@dataclass
+class ast_prog:
+    prog : "list[ass]"
 
-def parse(stream, scope=0):
-    stats = [] 
-    while stream.has():
-        #check scope
-        indent = 0
-        if all(x == ' ' for x in stream.peek()):
-            indent = len(stream.pop()) // 4
+    @classmethod 
+    def parse(cls, stream, scope=0):
+        stats = [] 
+        while stream.has():
+            #check scope
+            indent = 0
+            if all(x == ' ' for x in stream.peek()):
+                indent = len(stream.pop()) // 4
 
-        if indent != scope:
-            break
+            if indent != scope:
+                break
 
-        match stream.pop():
-            case 'var':
-                if stream.peek() == '.':
-                    stream.expect('.')
-                    stream.expect('new')
-                    stats.append(ast_var_new.parse(stream))
-                else:
-                    stats.append(ast_var_set.parse(stream))
-            case 'importpkg':
-                stream.expect('mkjExecutable')
-            case 'mkjExecutable':
-                stream.expect(':')
-                stream.expect('activate')
-                stream.expect('(')
-                stream.expect('"main.mkj"')
-                stream.expect(')')
-            case 'if':
-                stats.append(ast_if.parse(stream))
-                continue
-            case 'log':
-                stats.append(ast_log.parse(stream))
+            match stream.pop():
+                case 'var':
+                    if stream.peek() == '.':
+                        stream.expect('.')
+                        stream.expect('new')
+                        stats.append(ast_var_new.parse(stream))
+                    else:
+                        stats.append(ast_var_set.parse(stream))
+                case 'importpkg':
+                    stream.expect('mkjExecutable')
+                case 'mkjExecutable':
+                    stream.expect(':')
+                    stream.expect('activate')
+                    stream.expect('(')
+                    stream.expect('"main.mkj"')
+                    stream.expect(')')
+                case 'if':
+                    stats.append(ast_if.parse(stream))
+                    continue
+                case 'log':
+                    stats.append(ast_log.parse(stream))
 
-        assert stream.pop() == '\n' #newline
+            assert stream.pop() == '\n' #newline
 
-    return stats 
-
-
+        return stats 
 
 
 
@@ -229,7 +231,7 @@ def main():
         src = f.read()
 
     stream = lex(src)
-    root = parse(stream)
+    root = ast_prog.parse(stream)
 
     print(root)
 
