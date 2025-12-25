@@ -267,9 +267,9 @@ class ast_if:
     def run(self, env):
         choice = self.cond.run(env)
         if choice:
-            self.then.run(env)
-        else:
-            self.otherwise.run(env)
+            return self.then.run(env)
+        elif self.otherwise is not None:
+            return self.otherwise.run(env)
 
     @classmethod
     def parse(cls, s, scope):
@@ -432,20 +432,34 @@ class ast_return:
         return cls(expr.parse(s))
 
 @dataclass
+class ast_break:
+    def run(self, _): pass
+    @classmethod
+    def parse(cls, _): return cls()
+
+@dataclass
+class ast_continue:
+    def run(self, _): pass
+    @classmethod
+    def parse(cls, _): return cls()
+
+@dataclass
 class ast_repeat:
     n : expr
     body : ""
 
     def run(self, env):
         for _ in range(self.n.run(env)):
-            self.body.run(env)
+            status = self.body.run(env)
+            if status is ast_continue: continue
+            if status is ast_break: break
 
     @classmethod
     def parse(cls, s, scope):
         n = expr.parse(s)
         s.expect(':')
         s.expect('\n')
-        body = ast_prog.parse(s)
+        body = ast_prog.parse(s, scope)
         return cls(n, body)
 
 
@@ -523,7 +537,15 @@ class ast_prog:
             if type(stat) is ast_return:
                 return stat.run(env)
 
-            stat.run(env)
+            if type(stat) is ast_continue: return ast_continue
+            if type(stat) is ast_break:    return ast_break
+
+            status = stat.run(env)
+            if status is not None:
+                if status in (ast_continue, ast_break):
+                    return status
+
+
 
     @classmethod 
     def parse(cls, stream, scope=0):
@@ -531,11 +553,16 @@ class ast_prog:
         while stream.has():
             #check scope
             indent = 0
+            indented = False
             if all(x == ' ' for x in stream.peek()):
-                indent = len(stream.pop()) // 4
+                indented = True
+                indent = len(stream.peek()) // 4
 
             if indent != scope:
                 break
+
+            if indented:
+                stream.pop()
 
             stat = None
             match stream.pop():
@@ -556,7 +583,6 @@ class ast_prog:
                     stream.expect(')')
                 case 'if':
                     stat = ast_if.parse(stream, scope+1)
-                    continue
                 case 'log':
                     stat = ast_log.parse(stream)
                 case 'attempt':
@@ -577,6 +603,10 @@ class ast_prog:
                     stat = ast_self.parse(stream)
                 case 'return':
                     stat = ast_return.parse(stream)
+                case 'break':
+                    stat = ast_break.parse(stream)
+                case 'continue':
+                    stat = ast_continue.parse(stream)
                 case 'repeat':
                     stat = ast_repeat.parse(stream, scope+1)
 
