@@ -35,6 +35,10 @@ def lex(src):
             #remove line indentation
             while ts[-1].strip(' ') == '':
                 ts.pop(-1)
+                line_index -= 1
+
+            if line_index > 0:
+                ts.append('\n')
 
             buffer = ''
             comment = True
@@ -78,7 +82,7 @@ def lex(src):
         def expect(self, should):
             be = self.pop()
             if should != be:
-                print(f"Lex error: Should {should}, is {be}.")
+                print(f"Lex error: Expected '{should}', but got '{be}'.")
                 sys.exit(1)
 
     return streamer(ts)
@@ -121,6 +125,10 @@ class expr:
         r = self.right.run(env)
 
         return {
+            '+':    l + r,
+            '-':    l - r,
+            '*':    l * r,
+            '/':    l / r,
             '>=':   l >= r,
             '<=':   l <= r,
             '==':   l == r,
@@ -134,7 +142,7 @@ class expr:
     def parse(cls, s):
         left = leaf.parse(s)
 
-        if s.peek() not in ('>=', '<=', '==', '!=', 'and', 'or'):
+        if s.peek() not in ('+', '-', '*', '/', '>=', '<=', '==', '!=', 'and', 'or'):
             return left
 
         op = s.pop()
@@ -193,11 +201,10 @@ class ast_if:
             self.otherwise.run(env)
 
     @classmethod
-    def parse(cls, s):
+    def parse(cls, s, scope):
         cond = expr.parse(s)
         s.expect(':')
         s.expect('\n')
-        scope = 1 #hard coded
         then = ast_prog.parse(s, scope)
 
         if s.peek() == 'else':
@@ -228,6 +235,28 @@ class ast_log:
         s.expect(')')
 
         return cls(val)
+
+@dataclass
+class ast_try:
+    body : "ast_prog"
+    target : str
+    catch : "ast_prog"
+
+    @classmethod
+    def parse(cls, s, scope):
+        s.expect(':')
+        s.expect('\n')
+        body = ast_prog.parse(s, scope)
+
+        s.expect('catch')
+        target = s.pop()
+        s.expect(':')
+        s.expect('\n')
+        otherwise = ast_prog.parse(s, scope)
+
+        return cls(body, target, catch)
+
+
 
 
 @dataclass
@@ -267,12 +296,14 @@ class ast_prog:
                     stream.expect('"main.mkj"')
                     stream.expect(')')
                 case 'if':
-                    stats.append(ast_if.parse(stream))
+                    stats.append(ast_if.parse(stream, scope+1))
                     continue
                 case 'log':
                     stats.append(ast_log.parse(stream))
+                case 'attempt':
+                    stats.append(ast_try.parse(stream, scope+1))
 
-            assert stream.pop() == '\n' #newline
+            stream.expect('\n')
 
         return cls(stats) 
 
