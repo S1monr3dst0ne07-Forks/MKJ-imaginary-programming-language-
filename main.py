@@ -188,7 +188,7 @@ class expr:
             '+':    lambda l,r: l + r,
             '-':    lambda l,r: l - r,
             '*':    lambda l,r: l * r,
-            '/':    lambda l,r: 0 if r == 0 and fixed else l / r,
+            '/':    lambda l,r: 'infinity' if r == 0 and fixed else l / r,
             '>=':   lambda l,r: l >= r,
             '<=':   lambda l,r: l <= r,
             '==':   lambda l,r: l == r,
@@ -414,7 +414,7 @@ class ast_call:
         params = []
         s.expect('(')
         while s.peek() != ')':
-            params.append(expr.parse(s))
+            params.append(leaf.parse(s))
             if s.peek() == ',': s.pop()
         s.expect(')')
         return cls(fn_name, constructer, params)
