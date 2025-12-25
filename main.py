@@ -125,24 +125,25 @@ class expr:
         r = self.right.run(env)
 
         return {
-            '+':    l + r,
-            '-':    l - r,
-            '*':    l * r,
-            '/':    l / r,
-            '>=':   l >= r,
-            '<=':   l <= r,
-            '==':   l == r,
-            '!=':   l != r,
-            'and':  l and r,
-            'or':   l or r,
-        }[self.op]
+            '+':    lambda l,r: l + r,
+            '-':    lambda l,r: l - r,
+            '*':    lambda l,r: l * r,
+            '/':    lambda l,r: l / r,
+            '>=':   lambda l,r: l >= r,
+            '<=':   lambda l,r: l <= r,
+            '==':   lambda l,r: l == r,
+            '!=':   lambda l,r: l != r,
+            'and':  lambda l,r: l and r,
+            'or':   lambda l,r: l or r,
+            '..':   lambda l,r: str(l) + str(r),
+        }[self.op](l,r)
 
 
     @classmethod
     def parse(cls, s):
         left = leaf.parse(s)
 
-        if s.peek() not in ('+', '-', '*', '/', '>=', '<=', '==', '!=', 'and', 'or'):
+        if s.peek() not in ('+', '-', '*', '/', '>=', '<=', '==', '!=', 'and', 'or', '..'):
             return left
 
         op = s.pop()
@@ -242,6 +243,14 @@ class ast_try:
     target : str
     catch : "ast_prog"
 
+    def run(self, env):
+        try:
+            self.body.run(env)
+        except Exception as E:
+            env[self.target] = {}
+            env[self.target]["value"] = str(E)
+            self.catch.run(env)
+
     @classmethod
     def parse(cls, s, scope):
         s.expect(':')
@@ -252,7 +261,7 @@ class ast_try:
         target = s.pop()
         s.expect(':')
         s.expect('\n')
-        otherwise = ast_prog.parse(s, scope)
+        catch = ast_prog.parse(s, scope)
 
         return cls(body, target, catch)
 
