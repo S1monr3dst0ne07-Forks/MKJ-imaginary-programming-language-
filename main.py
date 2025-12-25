@@ -92,6 +92,7 @@ def lex(src):
 builtin = {
     'number_nodec': 'number_nodec',
     'number_fixed': 'number_fixed',
+    'string': 'string',
     'bool': 'bool',
     'true': True,
     'false': False,
@@ -100,12 +101,34 @@ builtin = {
 @dataclass
 class leaf:
     name : str
+    method : "str | None"
+    args : "list[a]"
 
     @classmethod
     def parse(cls, s):
-        return cls(s.pop())
+        name = s.pop()
+        method = None
+        args = []
+
+        if s.peek() == '.':
+            s.expect('.')
+            method = s.pop()
+
+            match method:
+                case 'length' | 'upper' | 'lower': pass
+                case 'find': args.append(s.pop().strip('"'))
+
+        return cls(name, method, args)
 
     def run(self, env, fixed=False):
+        if self.method is not None:
+            val = env[self.name]["value"]
+            match self.method:
+                case 'length': return len(val)
+                case 'upper':  return val.upper()
+                case 'lower':  return val.lower()
+                case 'find':   return self.args[0] if self.args[0] in val else 'null'
+
         if self.name.isdigit(): return int(self.name)
         if self.name[0] == '"': return self.name.strip('"')
         if self.name in builtin: return builtin[self.name]
@@ -314,7 +337,8 @@ class ast_prog:
                 case 'attempt':
                     stats.append(ast_try.parse(stream, scope+1))
 
-            stream.expect('\n')
+            if stream.has():
+                stream.expect('\n')
 
         return cls(stats) 
 
