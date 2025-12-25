@@ -14,7 +14,7 @@ def lex(src):
             case ' ': return 'space'
             case x if x.isalpha(): return 'iden'
             case '_': return 'iden'
-            case x if x.isdigit(): return 'num'
+            case x if x.isdigit(): return 'iden'
             case '"': return 'quote'
             case '\n': return 'eos'
             case '(': return 'open'
@@ -37,7 +37,7 @@ def lex(src):
                 ts.pop(-1)
                 line_index -= 1
 
-            if line_index > 0:
+            if line_index > 0 and ts[-1] != '\n':
                 ts.append('\n')
 
             buffer = ''
@@ -52,7 +52,8 @@ def lex(src):
             if state == 'eos': buffer = '\n'
 
             if state != 'space' or line_index == 0:
-                ts.append(buffer)
+                if not (buffer == '\n' and ts[-1] == '\n'):
+                    ts.append(buffer)
             line_index += 1
             buffer = ''
 
@@ -106,14 +107,17 @@ class leaf:
     name : str
     method : "str | None"
     args : "list[a]"
+    kind : str
 
     @classmethod
     def parse(cls, s):
         name = s.pop()
         method = None
         args = []
+        kind = 'normal'
 
         if s.peek() == '.':
+            kind = 'method'
             s.expect('.')
             method = s.pop()
 
@@ -121,16 +125,24 @@ class leaf:
                 case 'length' | 'upper' | 'lower': pass
                 case 'find': args.append(s.pop().strip('"'))
 
-        return cls(name, method, args)
+        elif s.peek() == '(':
+            kind = 'call'
+            s.push(name)
+            method = ast_call.parse(s)
+
+        return cls(name, method, args, kind)
 
     def run(self, env, fixed=False):
-        if self.method is not None:
+        if self.kind == 'method':
             val = env[self.name]["value"]
             match self.method:
                 case 'length': return len(val)
                 case 'upper':  return val.upper()
                 case 'lower':  return val.lower()
                 case 'find':   return self.args[0] if self.args[0] in val else 'null'
+
+        if self.kind == 'call':
+            return self.method.run(env)
 
         if self.name.isdigit(): return int(self.name)
         if self.name[0] == '"': return self.name.strip('"')
@@ -258,7 +270,7 @@ class ast_log:
         out = self.val.run(env)
         if type(out) is dict:
             for k, v in out.items():
-                print(f"{k}: {v}")
+                print(f"{k}: {v['value']}")
         else:
             print(out)
 
@@ -324,10 +336,10 @@ class ast_func:
 
     def call(self, env, args, constructer=None):
         for name, value in zip(self.params, args):
-            env[name] = value
+            env[name] = {"value": value}
 
         env["_con"] = constructer
-        self.body.run(env)
+        return self.body.run(env)
 
     @classmethod
     def parse(cls, s, scope):
@@ -368,7 +380,7 @@ class ast_call:
 
     def run(self, env):
         param_vals = [x.run(env) for x in self.params]
-        env["_fn"][self.fn_name].call(env, param_vals, self.constructer)
+        return env["_fn"][self.fn_name].call(env, param_vals, self.constructer)
 
     @classmethod
     def parse(cls, s, constructer=None):
@@ -382,6 +394,16 @@ class ast_call:
         return cls(fn_name, constructer, params)
 
 
+@dataclass
+class ast_return:
+    res : expr
+
+    def run(self, env):
+        return self.res.run(env)
+
+    @classmethod
+    def parse(cls, s):
+        return cls(expr.parse(s))
 
 
 
@@ -392,6 +414,9 @@ class ast_prog:
 
     def run(self, env):
         for stat in self.prog:
+            if type(stat) is ast_return:
+                return stat.run(env)
+
             stat.run(env)
 
     @classmethod 
@@ -444,6 +469,9 @@ class ast_prog:
                     stream.pop()
                 case 'self':
                     stat = ast_self.parse(stream)
+                case 'return':
+                    stat = ast_return.parse(stream)
+
 
                 case x if stream.peek() == '.':
                     stream.expect('.')
