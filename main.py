@@ -211,6 +211,7 @@ class ast_var_set:
     name : str
     field : str
     value : expr
+    inc : bool
 
     def run(self, env):
         if self.name not in env:
@@ -218,7 +219,13 @@ class ast_var_set:
             sys.exit(1)
 
         fixed = "type" in env[self.name] and env[self.name]["type"] == 'number_fixed'
-        env[self.name][self.field] = self.value.run(env, fixed)
+        val = self.value.run(env, fixed)
+
+        if self.inc:
+            env[self.name][self.field] += val
+        else:
+            env[self.name][self.field] = val
+
 
 
     @classmethod
@@ -226,9 +233,10 @@ class ast_var_set:
         name = s.pop()
         s.expect('.')
         field = s.pop()
-        s.expect('=')
+        inc = s.peek() == '+='
+        s.expect('+=' if inc else "=")
         value = expr.parse(s)
-        return cls(name, field, value)
+        return cls(name, field, value, inc)
 
 
 @dataclass
@@ -405,6 +413,24 @@ class ast_return:
     def parse(cls, s):
         return cls(expr.parse(s))
 
+@dataclass
+class ast_repeat:
+    n : expr
+    body : ""
+
+    def run(self, env):
+        for _ in range(self.n.run(env)):
+            self.body.run(env)
+
+    @classmethod
+    def parse(cls, s, scope):
+        n = expr.parse(s)
+        s.expect(':')
+        s.expect('\n')
+        body = ast_prog.parse(s)
+        return cls(n, body)
+
+
 
 
 
@@ -471,6 +497,8 @@ class ast_prog:
                     stat = ast_self.parse(stream)
                 case 'return':
                     stat = ast_return.parse(stream)
+                case 'repeat':
+                    stat = ast_repeat.parse(stream, scope+1)
 
 
                 case x if stream.peek() == '.':
