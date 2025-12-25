@@ -2,6 +2,7 @@
 import sys
 import random
 from dataclasses import dataclass
+from math import ceil
 
 
 
@@ -556,7 +557,7 @@ class ast_prog:
             indented = False
             if all(x == ' ' for x in stream.peek()):
                 indented = True
-                indent = len(stream.peek()) // 4
+                indent = ceil(len(stream.peek()) / 4)
 
             if indent != scope:
                 break
