@@ -87,6 +87,9 @@ def lex(src):
 
 builtin = {
     'number_nodec': 'number_nodec',
+    'bool': 'bool',
+    'true': True,
+    'false': False,
 }
 
 @dataclass
@@ -118,10 +121,12 @@ class expr:
         r = self.right.run(env)
 
         return {
-            '>=': l >= r,
-            '<=': l <= r,
-            '==': l == r,
-            '!=': l != r,
+            '>=':   l >= r,
+            '<=':   l <= r,
+            '==':   l == r,
+            '!=':   l != r,
+            'and':  l and r,
+            'or':   l or r,
         }[self.op]
 
 
