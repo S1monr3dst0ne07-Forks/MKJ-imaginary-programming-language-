@@ -85,6 +85,10 @@ def lex(src):
 
 
 
+builtin = {
+    'number_nodec': 'number_nodec',
+}
+
 @dataclass
 class leaf:
     name : str
@@ -93,12 +97,33 @@ class leaf:
     def parse(cls, s):
         return cls(s.pop())
 
+    def run(self, env):
+        if self.name.isdigit(): return int(self.name)
+        if self.name[0] == '"': return self.name.strip('"')
+        if self.name in builtin: return builtin[self.name]
+        
+        return env[self.name]["value"]
+
+
+
 
 @dataclass
 class expr:
     left  : "expr | leaf"
     right : "expr | leaf"
     op : str
+
+    def run(self, env):
+        l = self.left.run(env)
+        r = self.right.run(env)
+
+        return {
+            '>=': l >= r,
+            '<=': l <= r,
+            '==': l == r,
+            '!=': l != r,
+        }[self.op]
+
 
     @classmethod
     def parse(cls, s):
@@ -122,11 +147,22 @@ class ast_var_new:
     def parse(cls, s):
         return cls(s.pop())
 
+    def run(self, env):
+        env[self.name] = {}
+
 @dataclass
 class ast_var_set:
     name : str
     field : str
     value : expr
+
+    def run(self, env):
+        if self.name not in env:
+            print(f"Error: Variable {self.name} not defined")
+            sys.exit(1)
+
+        env[self.name][self.field] = self.value.run(env)
+
 
     @classmethod
     def parse(cls, s):
@@ -143,6 +179,13 @@ class ast_if:
     cond : expr
     then :      "prog"
     otherwise : "prog | None" #fuck you python
+
+    def run(self, env):
+        choice = self.cond.run(env)
+        if choice:
+            self.then.run(env)
+        else:
+            self.otherwise.run(env)
 
     @classmethod
     def parse(cls, s):
@@ -167,6 +210,9 @@ class ast_if:
 class ast_log:
     val : expr
 
+    def run(self, env):
+        print(self.val.run(env))
+
     @classmethod
     def parse(cls, s):
         s.expect('.')
@@ -182,6 +228,10 @@ class ast_log:
 @dataclass
 class ast_prog:
     prog : "list[ass]"
+
+    def run(self, env):
+        for stat in self.prog:
+            stat.run(env)
 
     @classmethod 
     def parse(cls, stream, scope=0):
@@ -219,7 +269,7 @@ class ast_prog:
 
             assert stream.pop() == '\n' #newline
 
-        return stats 
+        return cls(stats) 
 
 
 
@@ -232,8 +282,8 @@ def main():
 
     stream = lex(src)
     root = ast_prog.parse(stream)
+    root.run(env={})
 
-    print(root)
 
 
 if __name__ == '__main__':
