@@ -14,50 +14,55 @@ def lex(src):
             case x if x.isalpha(): return 'iden'
             case '_': return 'iden'
             case x if x.isdigit(): return 'num'
-            case '"': 'quote'
+            case '"': return 'quote'
+            case '\n': return 'eos'
+            case '(': return 'open'
+            case ')': return 'close'
             case _: return 'sym'
 
+    state = kind(src[0])
+    ts = []
+    buffer = ''
 
-    lines = []
-    for line in src.split('\n'):
-        words = []
+    comment = False
+    string = False
+    line_index = 0
+    for char in src + '\0':
+        this = kind(char)
 
-        if not line.strip(): continue
+        if buffer == '--': 
+            #remove line indentation
+            while ts[-1].strip(' ') == '':
+                ts.pop(-1)
 
-        #stop at output
-        if line.strip() == "Output:": break
+            buffer = ''
+            comment = True
 
-        buffer = ''
-        state = kind(line[0])
-        scope_space_done = False
-        string = False
-        comment = False
-        for char in list(line) + ['\0']:
-            this = kind(char)
 
-            if buffer == '--': comment = True
-            if char == '\n': comment = False
+        if buffer == 'Output':
+            break
 
-            if state != this and not string and not comment:
-                words.append(buffer)
-                buffer = ''
+        if this != state and not comment and not string:
+            #truncate eos
+            if state == 'eos': buffer = '\n'
 
-                if state == 'space' and scope_space_done:
-                    words.pop(-1)
-                scope_space_done = True
+            if state != 'space' or line_index == 0:
+                ts.append(buffer)
+            line_index += 1
+            buffer = ''
 
-            if char == '"': string = not string
+        if char == '"':
+            string = not string
+        if state == 'eos': 
+            comment = False
+            line_index = 0
 
-            if not comment:
-                buffer += char
-            state = this
+        if not comment:
+            buffer += char
+        state = this
 
-        # check token
-        if [x for x in words if x.strip()]:
-            lines.append(words)
-
-    print(lines)
-            
+    #print("".join(ts))
+    print(ts)
 
 
 
