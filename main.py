@@ -91,6 +91,7 @@ def lex(src):
 
 builtin = {
     'number_nodec': 'number_nodec',
+    'number_fixed': 'number_fixed',
     'bool': 'bool',
     'true': True,
     'false': False,
@@ -104,7 +105,7 @@ class leaf:
     def parse(cls, s):
         return cls(s.pop())
 
-    def run(self, env):
+    def run(self, env, fixed=False):
         if self.name.isdigit(): return int(self.name)
         if self.name[0] == '"': return self.name.strip('"')
         if self.name in builtin: return builtin[self.name]
@@ -120,7 +121,7 @@ class expr:
     right : "expr | leaf"
     op : str
 
-    def run(self, env):
+    def run(self, env, fixed=False):
         l = self.left.run(env)
         r = self.right.run(env)
 
@@ -128,7 +129,7 @@ class expr:
             '+':    lambda l,r: l + r,
             '-':    lambda l,r: l - r,
             '*':    lambda l,r: l * r,
-            '/':    lambda l,r: l / r,
+            '/':    lambda l,r: 0 if r == 0 and fixed else l / r,
             '>=':   lambda l,r: l >= r,
             '<=':   lambda l,r: l <= r,
             '==':   lambda l,r: l == r,
@@ -175,7 +176,8 @@ class ast_var_set:
             print(f"Error: Variable {self.name} not defined")
             sys.exit(1)
 
-        env[self.name][self.field] = self.value.run(env)
+        fixed = "type" in env[self.name] and env[self.name]["type"] == 'number_fixed'
+        env[self.name][self.field] = self.value.run(env, fixed)
 
 
     @classmethod
