@@ -1,0 +1,8 @@
+importpkg mkjExecutable
+mkjExecutable:activate("main.mkj")
+
+var.new msg
+var msg.type = string
+var msg.value = "if u see this then that means the script WORKED!"
+
+log.print.(msg)
