@@ -1,0 +1,62 @@
+importpkg mkjExecutable
+mkjExecutable:activate("main.mkj")
+
+-- input type (any)
+-- desc: this type allows user to input absolutely anything
+var.new input_any
+var input_any.type = input
+var.new input_any_PRINT
+var input_any_PRINT.value = log.userinput.("Input (any): ", input_any)
+log.print.(input_any_PRINT)
+-- output example --
+-- Input (any): hi there!
+-- hi there!
+----------------------------
+
+-- input type variable (string)
+-- desc: this type allows user to input string ONLY (numbers with letters/symbols work).
+var.new input_text
+var input_text.type = input_string
+var.new input_text_PRINT
+var input_text_PRINT.value = log.userinput.("Input (string): ", input_text)
+log.print.(input_text_PRINT)
+-- output example --
+-- Input (string): hello123
+-- hello123
+----------------------------
+
+-- input type variable (number)
+-- desc: this type allows user to input any number ONLY.
+var.new input_num
+var input_num.type = input_number
+var.new input_num_PRINT
+var input_num_PRINT.value = log.userinput.("Input (number): ", input_num)
+log.print.(input_num_PRINT)
+-- output example --
+-- Input (number): 12345.6789
+-- 12345.6789
+---------------------------------
+
+-- input type variable (number_nodec)
+-- desc: this type allows user to input any number without decimal points ONLY.
+var.new input_num_nd
+var input_num_nd.type = input_number_nodec
+var.new input_num_nd_PRINT
+var input_num_nd_PRINT.value = log.userinput.("Input (number): ", input_nd_num)
+log.print.(input_num_nd_PRINT)
+-- output example --
+-- Input (number): 12345
+-- 12345
+---------------------------------
+
+-- input type variable (math) [Optionable]
+-- desc: this type allows user to put math questions then it calculates and outputs result
+var.new input_mathN
+var input_mathN.type = input_math
+var.new input_mathN_PRINT
+var input_mathN_PRINT.value = log.userinput.("Input math: ", input_mathN)
+log.print.(input_mathN_PRINT)
+-- output example --
+-- Input math: 6*6
+-- 36
+------------------------
